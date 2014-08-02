@@ -354,7 +354,7 @@ class MultipleIndexesQueryTestCase(ElasticSearchQueryTestCase):
             index: name of the index to be deleted
         """
         index = index_name or self.index
-        url = "{0}{1}/".format(self.host, self.index)
+        url = "{0}{1}/".format(self.host, index)
         requests.delete(url, proxies=self.proxies)
 
     def search(self, query=None):

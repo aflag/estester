@@ -1,4 +1,5 @@
 import unittest
+import requests
 from mock import patch
 from estester import ElasticSearchQueryTestCase, ExtendedTestCase,\
     MultipleIndexesQueryTestCase, ElasticSearchException
@@ -12,6 +13,43 @@ SIMPLE_QUERY = {
             ],
             "query": "nina"
         }
+    }
+}
+SINGLE_INDEX_FIXTURE = [
+    {
+        "type": "dog",
+        "id": "1",
+        "body": {"name": "Nina Fox"}
+    },
+    {
+        "type": "dog",
+        "id": "2",
+        "body": {"name": "Charles M."}
+    }
+]
+MULTIPLE_INDEXES_FIXTURE = {
+    "personal": {
+        "fixtures": [
+            {
+                "type": "contact",
+                "id": "1",
+                "body": {"name": "Dmitriy"}
+            },
+            {
+                "type": "contact",
+                "id": "2",
+                "body": {"name": "Agnessa"}
+            }
+        ]
+    },
+    "professional": {
+        "fixtures": [
+            {
+                "type": "contact",
+                "id": "1",
+                "body": {"name": "Nikolay"}
+            }
+        ]
     }
 }
 
@@ -46,33 +84,35 @@ class DefaultValuesTestCase(unittest.TestCase):
         self.assertEqual(ESQTC.proxies, {})
 
 
+class MultipleIndexesFixtureLoadingTestCase(MultipleIndexesQueryTestCase):
+
+    data = MULTIPLE_INDEXES_FIXTURE
+
+    def test_create_index(self):
+        index = "indexovisky"
+        url = '{0}{1}'.format(self.host, index)
+        try:
+            self.create_index(index)
+            response = requests.head(url)
+            self.assertEqual(response.status_code, 200)
+        finally:
+            requests.delete(url)
+
+    def test_delete_index(self):
+        index = "indexovisky"
+        url = '{0}{1}'.format(self.host, index)
+        try:
+            requests.put(url)
+            self.delete_index(index)
+            response = requests.head(url)
+            self.assertEqual(response.status_code, 404)
+        finally:
+            requests.delete(url)
+
+
 class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
 
-    data = {
-        "personal": {
-            "fixtures": [
-                {
-                    "type": "contact",
-                    "id": "1",
-                    "body": {"name": "Dmitriy"}
-                },
-                {
-                    "type": "contact",
-                    "id": "2",
-                    "body": {"name": "Agnessa"}
-                }
-            ]
-        },
-        "professional": {
-            "fixtures": [
-                {
-                    "type": "contact",
-                    "id": "1",
-                    "body": {"name": "Nikolay"}
-                }
-            ]
-        }
-    }
+    data = MULTIPLE_INDEXES_FIXTURE
 
     def test_search_all_indexes(self):
         response = self.search()
@@ -128,18 +168,7 @@ class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
 
 class SimpleQueryTestCase(ElasticSearchQueryTestCase):
 
-    fixtures = [
-        {
-            "type": "dog",
-            "id": "1",
-            "body": {"name": "Nina Fox"}
-        },
-        {
-            "type": "dog",
-            "id": "2",
-            "body": {"name": "Charles M."}
-        }
-    ]
+    fixtures = SINGLE_INDEX_FIXTURE
     timeout = 1
 
     def test_must_refresh_test_case_index(self):
