@@ -104,7 +104,7 @@ class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
     def test_search_one_index_that_has_item(self):
         query = {
             "query": {
-                "text": {
+                "match": {
                     "name": "Agnessa"
                 }
             }
@@ -117,7 +117,7 @@ class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
     def test_search_one_index_that_doesnt_have_item(self):
         query = {
             "query": {
-                "text": {
+                "match": {
                     "name": "Agnessa"
                 }
             }
