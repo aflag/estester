@@ -94,6 +94,32 @@ class ElasticSearchQueryTestCase(ExtendedTestCase):
         if self.reset_index:
             self.delete_index()
 
+    def refresh_index(self, index=None):
+        """
+        Calls ElasticSearch's _refresh method on <index>. If index is None,
+        then refresh is called on every index.
+
+        This method makes all operations performed since the last refresh
+        available for search.
+        """
+        if index is None:
+            url = "{0}_refresh".format(self.host)
+        else:
+            url = "{0}{1}/_refresh".format(self.host, index)
+        response = requests.post(url, proxies=self.proxies)
+        if response.status_code not in [200, 201]:
+            raise ElasticSearchException(response.text)
+        return json.loads(response.text)
+
+    def refresh(self):
+        """
+        Calls ElasticSearch's _refresh method on the test case default index.
+
+        This method makes all operations performed since the last refresh
+        available for search.
+        """
+        return self.refresh_index(self.index)
+
     def create_index(self):
         """
         Use the following class attributes:

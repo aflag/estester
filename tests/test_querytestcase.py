@@ -1,7 +1,7 @@
 import unittest
 from mock import patch
 from estester import ElasticSearchQueryTestCase, ExtendedTestCase,\
-    MultipleIndexesQueryTestCase
+    MultipleIndexesQueryTestCase, ElasticSearchException
 
 
 SIMPLE_QUERY = {
@@ -141,6 +141,41 @@ class SimpleQueryTestCase(ElasticSearchQueryTestCase):
         }
     ]
     timeout = 1
+
+    def test_must_refresh_test_case_index(self):
+        response = self.refresh()
+        self.assertEqual(response['_shards']['failed'], 0)
+
+    def test_refresh_must_call_refresh_index_with_test_case_index(self):
+        with patch.object(self, 'refresh_index') as refresh_index:
+            self.refresh()
+        refresh_index.assert_called_once_with(self.index)
+
+    def test_must_refresh_all_indices(self):
+        response = self.refresh_index()
+        self.assertEqual(response['_shards']['failed'], 0)
+
+    def test_must_refresh_specific_index(self):
+        response = self.refresh_index(self.index)
+        self.assertEqual(response['_shards']['failed'], 0)
+
+    def test_must_fail_when_passing_missing_index(self):
+        with self.assertRaises(ElasticSearchException) as cm:
+            self.refresh_index('ohnoes')
+        expected = \
+            '{"error":"IndexMissingException[[ohnoes] missing]","status":404}'
+        self.assertEqual(cm.exception.message, expected)
+
+    @patch('requests.post')
+    def test_must_call_refresh_on_url_root(self, post):
+        attrs = {
+            "text": '{"_shards":{"total":20,"successful":10,"failed":0}}',
+            "status_code": 200
+        }
+        post.return_value.configure_mock(**attrs)
+        self.refresh_index()
+        post.assert_called_once_with('{0}_refresh'.format(self.host),
+                                     proxies=self.proxies)
 
     def test_search_by_nothing_returns_two_results(self):
         response = self.search()
