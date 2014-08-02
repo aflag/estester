@@ -183,7 +183,10 @@ class ElasticSearchQueryTestCase(ExtendedTestCase):
                 proxies=self.proxies)
             if not response.status_code in [200, 201]:
                 raise ElasticSearchException(response.text)
-        time.sleep(self.timeout)
+        if self.timeout is None:
+            self.refresh()
+        else:
+            time.sleep(self.timeout)
         # http://0.0.0.0:9200/sample.test/_search
 
     def delete_index(self):
@@ -345,7 +348,10 @@ class MultipleIndexesQueryTestCase(ElasticSearchQueryTestCase):
                 proxies=self.proxies)
             if not response.status_code in [200, 201]:
                 raise ElasticSearchException(response.text)
-        time.sleep(self.timeout)
+        if self.timeout is None:
+            self.refresh_index(index_name)
+        else:
+            time.sleep(self.timeout)
         # http://0.0.0.0:9200/sample.test/_search
 
     def delete_index(self, index_name=""):

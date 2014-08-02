@@ -1,4 +1,5 @@
 import unittest
+import time
 import requests
 from mock import patch
 from estester import ElasticSearchQueryTestCase, ExtendedTestCase,\
@@ -87,6 +88,16 @@ class DefaultValuesTestCase(unittest.TestCase):
 class MultipleIndexesFixtureLoadingTestCase(MultipleIndexesQueryTestCase):
 
     data = MULTIPLE_INDEXES_FIXTURE
+    timeout = None
+
+    # Avoid that load_fixtures is called before every test
+    def _pre_setup(self):
+        for index_name, index in self.data.items():
+            if self.reset_index:
+                self.delete_index(index_name)
+            settings = index.get("settings", {})
+            mappings = index.get("mappings", {})
+            self.create_index(index_name, settings, mappings)
 
     def test_create_index(self):
         index = "indexovisky"
@@ -109,10 +120,57 @@ class MultipleIndexesFixtureLoadingTestCase(MultipleIndexesQueryTestCase):
         finally:
             requests.delete(url)
 
+    def test_load_fixtures_sets_all_documents_in_place(self):
+        loaded_fixtures = 0
+        for index_name, index in self.data.items():
+            self.load_fixtures(index_name, index['fixtures'])
+            response = self.search()
+            loaded_fixtures += len(index['fixtures'])
+            self.assertEqual(response["hits"]["total"], loaded_fixtures)
+
+    @patch('time.sleep')
+    def test_assert_that_timeout_is_being_waited_by_load_fixtures(self, sleep):
+        old_timeout = self.timeout
+        try:
+            self.timeout = 5
+            index_name, index = self.data.items()[0]
+            self.load_fixtures(index_name, index['fixtures'])
+            sleep.assert_called_once_with(5)
+        finally:
+            self.timeout = old_timeout
+
+
+class SingleIndexFixtureLoadingTestCase(ElasticSearchQueryTestCase):
+
+    fixtures = SINGLE_INDEX_FIXTURE
+    timeout = None
+
+    # Avoid that load_fixtures is called before every test
+    def _pre_setup(self):
+        if self.reset_index:
+            self.delete_index()
+        self.create_index()
+
+    def test_load_fixtures_sets_all_documents_in_place(self):
+        self.load_fixtures()
+        response = self.search()
+        self.assertEqual(response["hits"]["total"], 2)
+
+    @patch('time.sleep')
+    def test_assert_that_timeout_is_being_waited_by_load_fixtures(self, sleep):
+        old_timeout = self.timeout
+        try:
+            self.timeout = 5
+            self.load_fixtures()
+            sleep.assert_called_once_with(5)
+        finally:
+            self.timeout = old_timeout
+
 
 class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
 
     data = MULTIPLE_INDEXES_FIXTURE
+    timeout = None
 
     def test_search_all_indexes(self):
         response = self.search()
@@ -169,7 +227,7 @@ class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
 class SimpleQueryTestCase(ElasticSearchQueryTestCase):
 
     fixtures = SINGLE_INDEX_FIXTURE
-    timeout = 1
+    timeout = None
 
     def test_must_refresh_test_case_index(self):
         response = self.refresh()
