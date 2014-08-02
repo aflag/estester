@@ -223,6 +223,27 @@ class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
         response = self.search_in_index("professional", query)
         self.assertEqual(response["hits"]["total"], 0)
 
+    def test_get_correct_document(self):
+        response = self.get('personal', 'contact', '1')
+        expected = {
+            "_index": "personal",
+            "_type": "contact",
+            "_id": "1",
+            "_version": 1,
+            "found": True,
+            "_source": {
+                "name": "Dmitriy"
+            }
+        }
+        self.assertDictEqual(response, expected)
+
+    def test_get_exception_on_missing_document(self):
+        with self.assertRaises(ElasticSearchException) as cm:
+            self.get('personal', 'contact', '20')
+        expected = \
+            '{"_index":"personal","_type":"contact","_id":"20","found":false}'
+        self.assertEqual(cm.exception.message, expected)
+
 
 class SimpleQueryTestCase(ElasticSearchQueryTestCase):
 
@@ -277,6 +298,27 @@ class SimpleQueryTestCase(ElasticSearchQueryTestCase):
         self.assertEqual(response["hits"]["total"], 1)
         self.assertEqual(response["hits"]["hits"][0]["_id"], u"1")
         self.assertEqual(response["hits"]["hits"][0]["_source"], expected)
+
+    def test_get_correct_document(self):
+        response = self.get('dog', '1')
+        expected = {
+            "_index": "sample.test",
+            "_type": "dog",
+            "_id": "1",
+            "_version": 1,
+            "found": True,
+            "_source": {
+                "name": "Nina Fox"
+            }
+        }
+        self.assertDictEqual(response, expected)
+
+    def test_get_exception_on_missing_document(self):
+        with self.assertRaises(ElasticSearchException) as cm:
+            self.get('dog', '20')
+        expected = \
+            '{"_index":"sample.test","_type":"dog","_id":"20","found":false}'
+        self.assertEqual(cm.exception.message, expected)
 
     def test_tokenize_with_default_analyzer(self):
         response = self.tokenize("Nothing to declare", "default")

@@ -222,6 +222,14 @@ class ElasticSearchQueryTestCase(ExtendedTestCase):
             proxies=self.proxies)
         return json.loads(response.text)
 
+    def get(self, doc_type, doc_id):
+        url = "{0}{1}/{2}/{3}".format(self.host, self.index, doc_type, doc_id)
+        response = requests.get(url)
+        if not response.status_code in [200, 201]:
+            raise ElasticSearchException(response.text)
+        else:
+            return json.loads(response.text)
+
 
 class MultipleIndexesQueryTestCase(ElasticSearchQueryTestCase):
     """
@@ -386,3 +394,11 @@ class MultipleIndexesQueryTestCase(ElasticSearchQueryTestCase):
             data=json.dumps(query),
             proxies=self.proxies)
         return json.loads(response.text)
+
+    def get(self, index, doc_type, doc_id):
+        url = "{0}{1}/{2}/{3}".format(self.host, index, doc_type, doc_id)
+        response = requests.get(url)
+        if not response.status_code in [200, 201]:
+            raise ElasticSearchException(response.text)
+        else:
+            return json.loads(response.text)
