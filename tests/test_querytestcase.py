@@ -1,4 +1,5 @@
 import unittest
+import json
 import time
 import requests
 from mock import patch
@@ -235,14 +236,25 @@ class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
                 "name": "Dmitriy"
             }
         }
+        # Compatibility with elasticsearch 0.90
+        if 'exists' in response:
+            expected['exists'] = expected.pop('found')
         self.assertDictEqual(response, expected)
 
     def test_get_exception_on_missing_document(self):
         with self.assertRaises(ElasticSearchException) as cm:
             self.get('personal', 'contact', '20')
-        expected = \
-            '{"_index":"personal","_type":"contact","_id":"20","found":false}'
-        self.assertEqual(cm.exception.message, expected)
+        expected = {
+            "_index": "personal",
+            "_type": "contact",
+            "_id": "20",
+            "found": False
+        }
+        response = json.loads(cm.exception.message)
+        # Compatibility with elasticsearch 0.90
+        if 'exists' in response:
+            expected['exists'] = expected.pop('found')
+        self.assertEqual(response, expected)
 
 
 class SimpleQueryTestCase(ElasticSearchQueryTestCase):
@@ -311,14 +323,25 @@ class SimpleQueryTestCase(ElasticSearchQueryTestCase):
                 "name": "Nina Fox"
             }
         }
+        # Compatibility with elasticsearch 0.90
+        if 'exists' in response:
+            expected['exists'] = expected.pop('found')
         self.assertDictEqual(response, expected)
 
     def test_get_exception_on_missing_document(self):
         with self.assertRaises(ElasticSearchException) as cm:
             self.get('dog', '20')
-        expected = \
-            '{"_index":"sample.test","_type":"dog","_id":"20","found":false}'
-        self.assertEqual(cm.exception.message, expected)
+        expected = {
+            "_index": "sample.test",
+            "_type": "dog",
+            "_id": "20",
+            "found": False
+        }
+        response = json.loads(cm.exception.message)
+        # Compatibility with elasticsearch 0.90
+        if 'exists' in response:
+            expected['exists'] = expected.pop('found')
+        self.assertEqual(response, expected)
 
     def test_tokenize_with_default_analyzer(self):
         response = self.tokenize("Nothing to declare", "default")
