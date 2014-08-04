@@ -30,9 +30,9 @@ SINGLE_INDEX_FIXTURE = [
         "body": {"name": "Charles M."}
     },
     {
-        "type": "dog",
+        "type": "internet/dog",
         "id": "http://dog.com",
-        "body": {"name": "Internet dog"}
+        "body": {"name": "It bytes"}
     }
 ]
 MULTIPLE_INDEXES_FIXTURE = {
@@ -62,7 +62,7 @@ MULTIPLE_INDEXES_FIXTURE = {
     "magical": {
         "fixtures": [
             {
-                "type": "wizard",
+                "type": "wizard/mage",
                 "id": "http://middleearth.com/gandalf",
                 "body": {"name": "Gandalf the Grey"}
             }
@@ -214,7 +214,7 @@ class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
             },
             {
                 u'_score': 1.0,
-                u'_type': u'wizard',
+                u'_type': u'wizard/mage',
                 u'_index': u'magical',
                 u'_id': u'http://middleearth.com/gandalf',
                 u'_source': {u'name': u'Gandalf the Grey'}
@@ -265,11 +265,12 @@ class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
         self.assertDictEqual(response, expected)
 
     def test_get_document_with_url_id(self):
-        response = \
-            self.get('magical', 'wizard', 'http://middleearth.com/gandalf')
+        response = self.get('magical',
+                            'wizard/mage',
+                            'http://middleearth.com/gandalf')
         expected = {
             "_index": "magical",
-            "_type": "wizard",
+            "_type": "wizard/mage",
             "_id": "http://middleearth.com/gandalf",
             "_version": 1,
             "found": True,
@@ -372,15 +373,15 @@ class SimpleQueryTestCase(ElasticSearchQueryTestCase):
         self.assertDictEqual(response, expected)
 
     def test_get_document_with_url_id(self):
-        response = self.get('dog', 'http://dog.com')
+        response = self.get('internet/dog', 'http://dog.com')
         expected = {
             "_index": "sample.test",
-            "_type": "dog",
+            "_type": "internet/dog",
             "_id": "http://dog.com",
             "_version": 1,
             "found": True,
             "_source": {
-                "name": "Internet dog"
+                "name": "It bytes"
             }
         }
         # Compatibility with elasticsearch 0.90
