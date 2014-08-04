@@ -223,6 +223,7 @@ class ElasticSearchQueryTestCase(ExtendedTestCase):
         return json.loads(response.text)
 
     def get(self, doc_type, doc_id):
+        doc_id = urllib.quote_plus(doc_id)
         url = "{0}{1}/{2}/{3}".format(self.host, self.index, doc_type, doc_id)
         response = requests.get(url)
         if not response.status_code in [200, 201]:
@@ -396,6 +397,7 @@ class MultipleIndexesQueryTestCase(ElasticSearchQueryTestCase):
         return json.loads(response.text)
 
     def get(self, index, doc_type, doc_id):
+        doc_id = urllib.quote_plus(doc_id)
         url = "{0}{1}/{2}/{3}".format(self.host, index, doc_type, doc_id)
         response = requests.get(url)
         if not response.status_code in [200, 201]:

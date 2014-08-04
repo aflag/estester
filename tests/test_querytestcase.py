@@ -2,6 +2,7 @@ import unittest
 import json
 import time
 import requests
+from operator import itemgetter
 from mock import patch
 from estester import ElasticSearchQueryTestCase, ExtendedTestCase,\
     MultipleIndexesQueryTestCase, ElasticSearchException
@@ -27,6 +28,11 @@ SINGLE_INDEX_FIXTURE = [
         "type": "dog",
         "id": "2",
         "body": {"name": "Charles M."}
+    },
+    {
+        "type": "dog",
+        "id": "http://dog.com",
+        "body": {"name": "Internet dog"}
     }
 ]
 MULTIPLE_INDEXES_FIXTURE = {
@@ -50,6 +56,15 @@ MULTIPLE_INDEXES_FIXTURE = {
                 "type": "contact",
                 "id": "1",
                 "body": {"name": "Nikolay"}
+            }
+        ]
+    },
+    "magical": {
+        "fixtures": [
+            {
+                "type": "wizard",
+                "id": "http://middleearth.com/gandalf",
+                "body": {"name": "Gandalf the Grey"}
             }
         ]
     }
@@ -155,7 +170,7 @@ class SingleIndexFixtureLoadingTestCase(ElasticSearchQueryTestCase):
     def test_load_fixtures_sets_all_documents_in_place(self):
         self.load_fixtures()
         response = self.search()
-        self.assertEqual(response["hits"]["total"], 2)
+        self.assertEqual(response["hits"]["total"], len(self.fixtures))
 
     @patch('time.sleep')
     def test_assert_that_timeout_is_being_waited_by_load_fixtures(self, sleep):
@@ -193,11 +208,19 @@ class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
             {
                 u'_score': 1.0,
                 u'_type': u'contact',
-                u'_id': u'1', u'_source': {u'name': u'Nikolay'},
+                u'_id': u'1',
+                u'_source': {u'name': u'Nikolay'},
                 u'_index': u'professional'
+            },
+            {
+                u'_score': 1.0,
+                u'_type': u'wizard',
+                u'_index': u'magical',
+                u'_id': u'http://middleearth.com/gandalf',
+                u'_source': {u'name': u'Gandalf the Grey'}
             }
         ]
-        self.assertEqual(response["hits"]["total"], 3)
+        self.assertEqual(response["hits"]["total"], 4)
         self.assertEqual(sorted(response["hits"]["hits"]), sorted(expected))
 
     def test_search_one_index_that_has_item(self):
@@ -234,6 +257,24 @@ class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
             "found": True,
             "_source": {
                 "name": "Dmitriy"
+            }
+        }
+        # Compatibility with elasticsearch 0.90
+        if 'exists' in response:
+            expected['exists'] = expected.pop('found')
+        self.assertDictEqual(response, expected)
+
+    def test_get_document_with_url_id(self):
+        response = \
+            self.get('magical', 'wizard', 'http://middleearth.com/gandalf')
+        expected = {
+            "_index": "magical",
+            "_type": "wizard",
+            "_id": "http://middleearth.com/gandalf",
+            "_version": 1,
+            "found": True,
+            "_source": {
+                "name": "Gandalf the Grey"
             }
         }
         # Compatibility with elasticsearch 0.90
@@ -297,12 +338,14 @@ class SimpleQueryTestCase(ElasticSearchQueryTestCase):
         post.assert_called_once_with('{0}_refresh'.format(self.host),
                                      proxies=self.proxies)
 
-    def test_search_by_nothing_returns_two_results(self):
+    def test_search_by_nothing_returns_three_results(self):
         response = self.search()
         expected = {u"name": u"Nina Fox"}
-        self.assertEqual(response["hits"]["total"], 2)
-        self.assertEqual(response["hits"]["hits"][0]["_id"], u"1")
-        self.assertEqual(response["hits"]["hits"][1]["_id"], u"2")
+        self.assertEqual(response["hits"]["total"], 3)
+        ids = map(itemgetter('_id'), response["hits"]["hits"])
+        self.assertIn(u"1", ids)
+        self.assertIn(u"2", ids)
+        self.assertIn(u"http://dog.com", ids)
 
     def test_search_by_nina_returns_one_result(self):
         response = self.search(SIMPLE_QUERY)
@@ -321,6 +364,23 @@ class SimpleQueryTestCase(ElasticSearchQueryTestCase):
             "found": True,
             "_source": {
                 "name": "Nina Fox"
+            }
+        }
+        # Compatibility with elasticsearch 0.90
+        if 'exists' in response:
+            expected['exists'] = expected.pop('found')
+        self.assertDictEqual(response, expected)
+
+    def test_get_document_with_url_id(self):
+        response = self.get('dog', 'http://dog.com')
+        expected = {
+            "_index": "sample.test",
+            "_type": "dog",
+            "_id": "http://dog.com",
+            "_version": 1,
+            "found": True,
+            "_source": {
+                "name": "Internet dog"
             }
         }
         # Compatibility with elasticsearch 0.90
