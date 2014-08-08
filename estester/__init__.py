@@ -254,8 +254,9 @@ class MultipleIndexesQueryTestCase(ElasticSearchQueryTestCase):
     Are replaced by:
         data = {
             "index.name": {
-                "mappings": {}
-                "settings": {}
+                "mappings": {},
+                "settings": {},
+                "aliases": [],
                 "fixtures": []
             }
         }
@@ -277,8 +278,11 @@ class MultipleIndexesQueryTestCase(ElasticSearchQueryTestCase):
             settings = index.get("settings", {})
             mappings = index.get("mappings", {})
             fixtures = index.get("fixtures", {})
+            aliases = index.get("aliases", [])
             self.create_index(index_name, settings, mappings)
             self.load_fixtures(index_name, fixtures)
+            if aliases:
+                self.create_aliases(index_name, aliases)
 
     def _post_teardown(self):
         """
@@ -292,6 +296,30 @@ class MultipleIndexesQueryTestCase(ElasticSearchQueryTestCase):
         for index_name, index in self.data.items():
             if self.reset_index:
                 self.delete_index(index_name)
+
+    def create_aliases(self, index, aliases):
+        """
+        Create <aliases> (a list of aliases) for the index identified by
+        <index>
+        """
+        payload = {
+            "actions": []
+        }
+        for alias in aliases:
+            action = {
+                "add": {
+                    "index": index,
+                    "alias": alias
+                }
+            }
+            payload["actions"].append(action)
+        url = "{0}/_aliases".format(self.host)
+        json_data = json.dumps(payload)
+        response = requests.post(url, proxies=self.proxies, data=json_data)
+        if not response.status_code in [200, 201]:
+            raise ElasticSearchException(response.text)
+        else:
+            return json.loads(response.text)
 
     def create_index(self, index_name="", settings="", mappings=""):
         """
@@ -316,6 +344,21 @@ class MultipleIndexesQueryTestCase(ElasticSearchQueryTestCase):
             data["settings"] = settings or self.settings
         json_data = json.dumps(data)
         response = requests.put(url, proxies=self.proxies, data=json_data)
+
+    def get_aliases(self, index):
+        """
+        Gets aliases of <index>
+        """
+        url = '{0}{1}/_aliases'.format(self.host, index)
+        response = requests.get(url, proxies=self.proxies)
+        if not response.status_code in [200, 201]:
+            raise ElasticSearchException(response.text)
+        else:
+            aliases = json.loads(response.text)
+            if index in aliases:
+                return aliases[index]['aliases'].keys()
+            else:
+                return []
 
     def load_fixtures(self, index_name="", fixtures=""):
         """
