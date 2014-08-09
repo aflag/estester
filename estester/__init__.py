@@ -338,10 +338,12 @@ class MultipleIndexesQueryTestCase(ElasticSearchQueryTestCase):
         index = index_name or self.index
         url = url.format(self.host, index)
         data = {}
-        if self.mappings:
-            data["mappings"] = mappings or self.mappings
-        if self.settings:
-            data["settings"] = settings or self.settings
+        mappings = mappings or self.mappings
+        if mappings:
+            data["mappings"] = mappings
+        settings = settings or self.settings
+        if settings:
+            data["settings"] = settings
         json_data = json.dumps(data)
         response = requests.put(url, proxies=self.proxies, data=json_data)
 

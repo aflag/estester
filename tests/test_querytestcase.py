@@ -18,57 +18,6 @@ SIMPLE_QUERY = {
         }
     }
 }
-SINGLE_INDEX_FIXTURE = [
-    {
-        "type": "dog",
-        "id": "1",
-        "body": {"name": "Nina Fox"}
-    },
-    {
-        "type": "dog",
-        "id": "2",
-        "body": {"name": "Charles M."}
-    },
-    {
-        "type": "internet/dog",
-        "id": "http://dog.com",
-        "body": {"name": "It bytes"}
-    }
-]
-MULTIPLE_INDEXES_FIXTURE = {
-    "personal": {
-        "fixtures": [
-            {
-                "type": "contact",
-                "id": "1",
-                "body": {"name": "Dmitriy"}
-            },
-            {
-                "type": "contact",
-                "id": "2",
-                "body": {"name": "Agnessa"}
-            }
-        ]
-    },
-    "professional": {
-        "fixtures": [
-            {
-                "type": "contact",
-                "id": "1",
-                "body": {"name": "Nikolay"}
-            }
-        ]
-    },
-    "magical": {
-        "fixtures": [
-            {
-                "type": "wizard/mage",
-                "id": "http://middleearth.com/gandalf",
-                "body": {"name": "Gandalf the Grey"}
-            }
-        ]
-    }
-}
 
 
 def raise_interruption(self):
@@ -101,221 +50,42 @@ class DefaultValuesTestCase(unittest.TestCase):
         self.assertEqual(ESQTC.proxies, {})
 
 
-class AliasMultipleIndexesTestCase(MultipleIndexesQueryTestCase):
+class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
 
     data = {
-        "beatles": {
-            "aliases": [
-                "band"
-            ],
+        "personal": {
             "fixtures": [
                 {
-                    "type": "member",
-                    "id": "lenon",
-                    "body": {
-                        "name": "John Lenon",
-                        "role": "singer"
-                    }
+                    "type": "contact",
+                    "id": "1",
+                    "body": {"name": "Dmitriy"}
                 },
                 {
-                    "type": "member",
-                    "id": "mccartney",
-                    "body": {
-                        "name": "Paul McCartney",
-                        "role": "guitar"
-                    }
-                },
-                {
-                    "type": "member",
-                    "id": "harrison",
-                    "body": {
-                        "name": "George Harrison",
-                        "role": "bass"
-                    }
+                    "type": "contact",
+                    "id": "2",
+                    "body": {"name": "Agnessa"}
                 }
             ]
         },
-        "thepolice": {
-            "aliases": [
-                "band",
-                "single-man-band"
-            ],
+        "professional": {
             "fixtures": [
                 {
-                    "type": "member",
-                    "id": "sting",
-                    "body": {
-                        "name": "Gordon Matthew Thomas Sumner",
-                        "role": "singer"
-                    }
+                    "type": "contact",
+                    "id": "1",
+                    "body": {"name": "Nikolay"}
+                }
+            ]
+        },
+        "magical": {
+            "fixtures": [
+                {
+                    "type": "wizard/mage",
+                    "id": "http://middleearth.com/gandalf",
+                    "body": {"name": "Gandalf the Grey"}
                 }
             ]
         }
     }
-    timeout = None
-
-    def test_finds_aliases_for_all_indices(self):
-        self.assertEqual(set(self.get_aliases("thepolice")),
-                         {"band", "single-man-band"})
-        self.assertEqual(self.get_aliases("beatles"), ["band"])
-
-    def test_create_alias_for_an_index(self):
-        self.create_aliases('thepolice', ['stingband'])
-        self.assertEqual(set(self.get_aliases('thepolice')),
-                         {'band', 'single-man-band', 'stingband'})
-
-    def test_get_aliases_on_missing_index_must_return_empty(self):
-        self.assertEqual(self.get_aliases('hoodoogurus'), [])
-
-    def test_get_aliases_on_index_with_no_aliases_must_return_empty(self):
-        self.create_index('metallica')
-        self.assertEqual(self.get_aliases('metallica'), [])
-
-    # I could not  make elasticsearch's _aliases to return an error
-    @patch('requests.get')
-    def test_failure_in_getting_alias(self, get):
-        attrs = {
-            "text": 'Error',
-            "status_code": 400
-        }
-        get.return_value.configure_mock(**attrs)
-        with self.assertRaises(ElasticSearchException) as cm:
-            self.get_aliases('hoodoogurus')
-        self.assertEqual(cm.exception.message, 'Error')
-
-    def test_creating_alias_for_missing_index_must_fail(self):
-        with self.assertRaises(ElasticSearchException) as cm:
-            self.create_aliases('hoodoogurus', ['stingband'])
-        expected = {
-            "error": "IndexMissingException[[hoodoogurus] missing]",
-            "status": 404
-        }
-        self.assertDictEqual(json.loads(cm.exception.message), expected)
-
-    def test_search_alias_for_sting(self):
-        query = {
-            "query": {
-                "match": {
-                    "name": "Gordon"
-                }
-            }
-        }
-        response = self.search_in_index("single-man-band", query)
-        self.assertEqual(response["hits"]["total"], 1)
-        self.assertEqual(response['hits']['hits'][0]['_id'], 'sting')
-
-    def test_single_index_alias_must_return_only_one_singer(self):
-        query = {
-            "query": {
-                "match": {
-                    "role": "singer"
-                }
-            }
-        }
-        response = self.search_in_index('single-man-band', query)
-        self.assertEqual(response["hits"]["total"], 1)
-        self.assertEqual(response["hits"]["hits"][0]['_id'], 'sting')
-
-    def test_search_bands_for_singer(self):
-        query = {
-            "query": {
-                "match": {
-                    "role": "singer"
-                }
-            }
-        }
-        response = self.search_in_index('band', query)
-        self.assertEqual(response["hits"]["total"], 2)
-        ids = map(itemgetter('_id'), response["hits"]["hits"])
-        self.assertIn('sting', ids)
-        self.assertIn('lenon', ids)
-
-
-class MultipleIndexesFixtureLoadingTestCase(MultipleIndexesQueryTestCase):
-
-    data = MULTIPLE_INDEXES_FIXTURE
-    timeout = None
-
-    # Avoid that load_fixtures is called before every test
-    def _pre_setup(self):
-        for index_name, index in self.data.items():
-            if self.reset_index:
-                self.delete_index(index_name)
-            settings = index.get("settings", {})
-            mappings = index.get("mappings", {})
-            self.create_index(index_name, settings, mappings)
-
-    def test_create_index(self):
-        index = "indexovisky"
-        url = '{0}{1}'.format(self.host, index)
-        try:
-            self.create_index(index)
-            response = requests.head(url)
-            self.assertEqual(response.status_code, 200)
-        finally:
-            requests.delete(url)
-
-    def test_delete_index(self):
-        index = "indexovisky"
-        url = '{0}{1}'.format(self.host, index)
-        try:
-            requests.put(url)
-            self.delete_index(index)
-            response = requests.head(url)
-            self.assertEqual(response.status_code, 404)
-        finally:
-            requests.delete(url)
-
-    def test_load_fixtures_sets_all_documents_in_place(self):
-        loaded_fixtures = 0
-        for index_name, index in self.data.items():
-            self.load_fixtures(index_name, index['fixtures'])
-            response = self.search()
-            loaded_fixtures += len(index['fixtures'])
-            self.assertEqual(response["hits"]["total"], loaded_fixtures)
-
-    @patch('time.sleep')
-    def test_assert_that_timeout_is_being_waited_by_load_fixtures(self, sleep):
-        old_timeout = self.timeout
-        try:
-            self.timeout = 5
-            index_name, index = self.data.items()[0]
-            self.load_fixtures(index_name, index['fixtures'])
-            sleep.assert_called_once_with(5)
-        finally:
-            self.timeout = old_timeout
-
-
-class SingleIndexFixtureLoadingTestCase(ElasticSearchQueryTestCase):
-
-    fixtures = SINGLE_INDEX_FIXTURE
-    timeout = None
-
-    # Avoid that load_fixtures is called before every test
-    def _pre_setup(self):
-        if self.reset_index:
-            self.delete_index()
-        self.create_index()
-
-    def test_load_fixtures_sets_all_documents_in_place(self):
-        self.load_fixtures()
-        response = self.search()
-        self.assertEqual(response["hits"]["total"], len(self.fixtures))
-
-    @patch('time.sleep')
-    def test_assert_that_timeout_is_being_waited_by_load_fixtures(self, sleep):
-        old_timeout = self.timeout
-        try:
-            self.timeout = 5
-            self.load_fixtures()
-            sleep.assert_called_once_with(5)
-        finally:
-            self.timeout = old_timeout
-
-
-class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
-
-    data = MULTIPLE_INDEXES_FIXTURE
     timeout = None
 
     def test_search_all_indexes(self):
@@ -431,7 +201,23 @@ class SimpleMultipleIndexesQueryTestCase(MultipleIndexesQueryTestCase):
 
 class SimpleQueryTestCase(ElasticSearchQueryTestCase):
 
-    fixtures = SINGLE_INDEX_FIXTURE
+    fixtures = [
+        {
+            "type": "dog",
+            "id": "1",
+            "body": {"name": "Nina Fox"}
+        },
+        {
+            "type": "dog",
+            "id": "2",
+            "body": {"name": "Charles M."}
+        },
+        {
+            "type": "internet/dog",
+            "id": "http://dog.com",
+            "body": {"name": "It bytes"}
+        }
+    ]
     timeout = None
 
     def test_must_refresh_test_case_index(self):
