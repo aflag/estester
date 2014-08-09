@@ -33,18 +33,30 @@ class IndexManagementSingleIndexTestCase(ElasticSearchQueryTestCase):
 
         response = requests.get(url + '/_mapping')
         self.assertEqual(response.status_code, 200)
-        expected = {
-            "indexovisky": {
-                "mappings": self.mappings
+        found = json.loads(response.text)
+        # Elasticsearch 0.90 did not return a mappings key
+        if 'mappings' in found['indexovisky']:
+            expected = {
+                "indexovisky": {
+                    "mappings": self.mappings
+                }
             }
-        }
-        self.assertDictEqual(json.loads(response.text), expected)
+        else:
+            expected = {
+                "indexovisky": self.mappings
+            }
+        self.assertDictEqual(found, expected)
 
         response = requests.get(url + '/_settings')
         self.assertEqual(response.status_code, 200)
         found = json.loads(response.text)['indexovisky']['settings']
-        self.assertEqual(found['index']['number_of_replicas'], '4')
-        self.assertEqual(found['index']['number_of_shards'], '7')
+        # Elasticsearch 0.90 used to use dot instead of nested dictionaries
+        if 'index' not in found:
+            self.assertEqual(found['index.number_of_replicas'], '4')
+            self.assertEqual(found['index.number_of_shards'], '7')
+        else:
+            self.assertEqual(found['index']['number_of_replicas'], '4')
+            self.assertEqual(found['index']['number_of_shards'], '7')
 
 
 class IndexManagementMultipleIndexesTestCase(MultipleIndexesQueryTestCase):
@@ -83,18 +95,30 @@ class IndexManagementMultipleIndexesTestCase(MultipleIndexesQueryTestCase):
 
         response = requests.get(self.url + '/_mapping')
         self.assertEqual(response.status_code, 200)
-        expected = {
-            "indexovisky": {
-                "mappings": self.mappings
+        found = json.loads(response.text)
+        # Elasticsearch 0.90 did not return a mappings key
+        if 'mappings' in found['indexovisky']:
+            expected = {
+                "indexovisky": {
+                    "mappings": self.mappings
+                }
             }
-        }
-        self.assertDictEqual(json.loads(response.text), expected)
+        else:
+            expected = {
+                "indexovisky": self.mappings
+            }
+        self.assertDictEqual(found, expected)
 
         response = requests.get(self.url + '/_settings')
         self.assertEqual(response.status_code, 200)
         found = json.loads(response.text)['indexovisky']['settings']
-        self.assertEqual(found['index']['number_of_replicas'], '4')
-        self.assertEqual(found['index']['number_of_shards'], '7')
+        # Elasticsearch 0.90 used to use dot instead of nested dictionaries
+        if 'index' not in found:
+            self.assertEqual(found['index.number_of_replicas'], '4')
+            self.assertEqual(found['index.number_of_shards'], '7')
+        else:
+            self.assertEqual(found['index']['number_of_replicas'], '4')
+            self.assertEqual(found['index']['number_of_shards'], '7')
 
     def test_create_an_index_with_custom_mappings(self):
         mappings = {
@@ -114,12 +138,19 @@ class IndexManagementMultipleIndexesTestCase(MultipleIndexesQueryTestCase):
         self.assertEqual(response.status_code, 200)
         response = requests.get(self.url + '/_mapping')
         self.assertEqual(response.status_code, 200)
-        expected = {
-            "indexovisky": {
-                "mappings": mappings
+        found = json.loads(response.text)
+        # Elasticsearch 0.90 did not return a mappings key
+        if 'mappings' in found['indexovisky']:
+            expected = {
+                "indexovisky": {
+                    "mappings": mappings
+                }
             }
-        }
-        self.assertDictEqual(json.loads(response.text), expected)
+        else:
+            expected = {
+                "indexovisky": mappings
+            }
+        self.assertDictEqual(found, expected)
 
     def test_create_an_index_with_custom_settings(self):
         settings = {
@@ -134,8 +165,13 @@ class IndexManagementMultipleIndexesTestCase(MultipleIndexesQueryTestCase):
         response = requests.get(self.url + '/_settings')
         self.assertEqual(response.status_code, 200)
         found = json.loads(response.text)['indexovisky']['settings']
-        self.assertEqual(found['index']['number_of_replicas'], '2')
-        self.assertEqual(found['index']['number_of_shards'], '3')
+        # Elasticsearch 0.90 used to use dot instead of nested dictionaries
+        if 'index' not in found:
+            self.assertEqual(found['index.number_of_replicas'], '2')
+            self.assertEqual(found['index.number_of_shards'], '3')
+        else:
+            self.assertEqual(found['index']['number_of_replicas'], '2')
+            self.assertEqual(found['index']['number_of_shards'], '3')
 
     def test_delete_index(self):
         requests.put(self.url)

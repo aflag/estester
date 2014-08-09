@@ -353,7 +353,10 @@ class MultipleIndexesQueryTestCase(ElasticSearchQueryTestCase):
         """
         url = '{0}{1}/_aliases'.format(self.host, index)
         response = requests.get(url, proxies=self.proxies)
-        if not response.status_code in [200, 201]:
+        # Elasticsearch 0.90 used to return 404 when there were no aliases
+        if response.status_code == 404:
+            return []
+        elif not response.status_code in [200, 201]:
             raise ElasticSearchException(response.text)
         else:
             aliases = json.loads(response.text)
